@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Pacemaker from './pacemaker';
 
 const durationOptions = [1, 1.5, 2, 2.5, 3] as const;
 const sessionOptions = [1, 2, 3] as const;
@@ -19,6 +20,7 @@ export default function App() {
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [showPacemaker, setShowPacemaker] = useState(false);
 
   const activeSession = isFirstSession ? 1 : sessionNumber;
 
@@ -33,6 +35,7 @@ export default function App() {
 
   const handleStart = () => {
     setHasStarted(true);
+    setShowPacemaker(true);
   };
 
   const handleReset = () => {
@@ -102,19 +105,15 @@ export default function App() {
             </Pressable>
           </View>
         ) : (
-          <View style={styles.startedPanel}>
-            <Text style={styles.startedTitle}>設定を開始しました</Text>
-            <Text style={styles.startedSummary}>{summaryLabel}</Text>
-            <Text style={styles.startedSummary}>最高杯数: {maxDrinks}杯</Text>
-            <Text style={styles.startedHint}>次の画面でカウントダウンと通知を行います。</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleReset}
-              style={styles.resetButton}
-            >
-              <Text style={styles.resetButtonText}>設定を見直す</Text>
-            </Pressable>
-          </View>
+          <Pacemaker
+            durationHours={durationHours}
+            isFirstSession={isFirstSession}
+            maxDrinks={maxDrinks}
+            onFinish={() => {
+              setShowPacemaker(false);
+              setHasStarted(false);
+            }}
+          />
         )}
       </ScrollView>
 
