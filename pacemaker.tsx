@@ -179,16 +179,18 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
   const sessionEndTime = sessionStart ? sessionStart + durationHours * 60 * 60 * 1000 : null;
 
   const getIntervalMinutesForOrder = (afterDrinksCount: number) => {
-    if (!isFirstSession) return 30;
-    // first-session sequence: 1->10, 2->20, 3->20, >=4 ->30
-    if (afterDrinksCount === 1) return 10;
-    if (afterDrinksCount === 2 || afterDrinksCount === 3) return 20;
+    // if (!isFirstSession) return 30;
+    // // first-session sequence: 1->10, 2->20, 3->20, >=4 ->30
+    // if (afterDrinksCount === 1) return 10;
+    // if (afterDrinksCount === 2 || afterDrinksCount === 3) return 20;
+    return 1;
   };
 
   const canStartNextInterval = (intervalMinutes: number) => {
     const now = Date.now();
     const start = sessionStart ?? now;
-    const end = start + durationHours * 60 * 60 * 1000;
+    //const end = start + durationHours * 60 * 60 * 1000;
+    const end = start + 500000;
     return now + intervalMinutes * 60 * 1000 <= end;
   };
 
@@ -235,15 +237,14 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
     }
   };
 
-  const formatTime = (s: number | null) => {
-    if (s === null) return '--:--';
-    const mm = Math.floor(s / 60)
-      .toString()
-      .padStart(2, '0');
-    const ss = Math.floor(s % 60)
-      .toString()
-      .padStart(2, '0');
-    return `${mm}:${ss}`;
+  const formatTime = (s: number | null, currentDrinks: number, canOrderNext: boolean) => {
+    if (currentDrinks >= maxDrinks || !canOrderNext) return 'お酒は控えめに...';
+    if (currentDrinks === 0) return 'ビールを飲みましょう';
+    if (s === null) return 'まだ飲めますね';
+    const totalMinutes = Math.ceil(s / 60);
+    const steps = [1, 5, 10, 15, 20, 30];
+    const rounded = steps.find((step) => totalMinutes <= step) ?? 30;
+    return `あと${rounded}分くらい`;
   };
 
   const handleDecreaseLong = () => {
@@ -274,14 +275,15 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
 
   const nextIntervalForPotentialPress = getIntervalMinutesForOrder(drinks + 1);
   const nextAllowedByTime = canStartNextInterval(nextIntervalForPotentialPress);
+  const isSessionEnded = isMaxed || !nextAllowedByTime;
 
-  const backgroundColor = isMaxed ? styles.bgMax : countdownActive ? styles.bgCountdown : styles.bgReady;
+  const backgroundColor = isSessionEnded ? styles.bgMax : countdownActive ? styles.bgCountdown : styles.bgReady;
 
   return (
     <View style={[styles.container, backgroundColor]}>
       <View style={styles.header}>
         <Text style={styles.headerLabel}>残り時間</Text>
-        <Text style={styles.headerTime}>{formatTime(countdownSec)}</Text>
+        <Text style={styles.headerTime}>{formatTime(countdownSec, drinks, nextAllowedByTime)}</Text>
       </View>
 
       <View style={styles.centerArea}>
@@ -296,7 +298,14 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
               (countdownActive || isMaxed || !nextAllowedByTime) && styles.orderButtonDisabled,
             ]}
           >
-            <Text style={styles.orderButtonText}>{isMaxed ? 'もう飲めません...' : countdownActive ? '飲みましょう!' : '酒を注文する'}</Text>
+            <Text
+              style={[
+                styles.orderButtonText,
+                (isSessionEnded || countdownActive) && styles.orderButtonTextWhite,
+              ]}
+            >
+              {isSessionEnded ? 'もう飲めません...' : countdownActive ? '飲みましょう!' : '酒を注文する'}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -333,22 +342,24 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 56,
+    paddingTop: 52,
     paddingHorizontal: 18,
     justifyContent: 'space-between',
-    backgroundColor: '#121416',
+    backgroundColor: '#0b0d10',
   },
   header: {
     alignItems: 'center',
-    paddingTop: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerLabel: {
-    color: '#d7d7d1',
-    fontSize: 12,
+    color: '#d7bd8a',
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: 8,
-    opacity: 0.9,
+    letterSpacing: 1.6,
+    marginBottom: 10,
+    opacity: 0.95,
+    textTransform: 'uppercase',
   },
   headerText: {
     color: '#f5f5f4',
@@ -357,97 +368,115 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerTime: {
-    color: '#f5f5f1',
-    fontSize: 52,
+    color: '#f7efe4',
+    fontSize: 16,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(215, 189, 138, 0.25)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   centerArea: {
     alignItems: 'center',
   },
   actionCard: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 370,
     alignItems: 'center',
+    backgroundColor: '#13171b',
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#2a3037',
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    shadowColor: '#000000',
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
   },
   orderButton: {
     width: '100%',
-    minHeight: 104,
-    borderRadius: 28,
+    minHeight: 108,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#355d7d',
+    backgroundColor: '#dcb77a',
     borderWidth: 1,
-    borderColor: '#6ca8d7',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    borderColor: '#f0ddb0',
+    shadowColor: '#dcb77a',
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   orderButtonPressed: {
     transform: [{ scale: 0.99 }],
   },
   orderButtonDisabled: {
-    opacity: 0.6,
-    backgroundColor: '#3c3f45',
-    borderColor: '#5f646b',
+    opacity: 0.62,
+    backgroundColor: '#3a3e44',
+    borderColor: '#5b6169',
+    shadowOpacity: 0,
   },
   orderButtonText: {
-    color: '#f4f7fb',
-    fontSize: 20,
+    color: '#17120d',
+    fontSize: 22,
     fontWeight: '900',
     textAlign: 'center',
-    paddingHorizontal: 20,
-    letterSpacing: 0.5,
+    paddingHorizontal: 18,
+    letterSpacing: 0.4,
+  },
+  orderButtonTextWhite: {
+    color: '#ffffff',
   },
   smallButton: {
     marginTop: 18,
-    width: '72%',
+    width: '82%',
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#1e2329',
+    paddingVertical: 11,
+    borderRadius: 16,
+    backgroundColor: '#1b2026',
     borderWidth: 1,
-    borderColor: '#3a4048',
+    borderColor: '#3b4550',
     alignItems: 'center',
   },
   smallButtonText: {
-    color: '#e6e6e6',
+    color: '#e8e3db',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   footer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 30,
   },
   finishButton: {
-    backgroundColor: '#d9c7a6',
+    backgroundColor: '#d8bc8d',
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#f1d9aa',
+    borderColor: '#f0d7a4',
     shadowColor: '#000',
     shadowOpacity: 0.18,
-    shadowRadius: 10,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
     elevation: 4,
   },
   finishButtonText: {
-    color: '#191511',
+    color: '#17120d',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   bgCountdown: {
-    backgroundColor: '#211d21',
+    backgroundColor: '#171417',
   },
   bgReady: {
-    backgroundColor: '#141b22',
+    backgroundColor: '#11181d',
   },
   bgMax: {
-    backgroundColor: '#221b1f',
+    backgroundColor: '#1a1415',
   },
 });
