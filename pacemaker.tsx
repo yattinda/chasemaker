@@ -190,18 +190,17 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
   const sessionEndTime = sessionStart ? sessionStart + durationHours * 60 * 60 * 1000 : null;
 
   const getIntervalMinutesForOrder = (afterDrinksCount: number) => {
-    // if (!isFirstSession) return 30;
-    // // first-session sequence: 1->10, 2->20, 3->20, >=4 ->30
-    // if (afterDrinksCount === 1) return 10;
-    // if (afterDrinksCount === 2 || afterDrinksCount === 3) return 20;
-    return 1;
+    if (!isFirstSession) return 30;
+    // first-session sequence: 1->10, 2->20, 3->20, >=4 ->30
+    if (afterDrinksCount === 1) return 10;
+    if (afterDrinksCount === 2 || afterDrinksCount === 3) return 20;
+    return 30;
   };
 
   const canStartNextInterval = (intervalMinutes: number) => {
     const now = currentTime;
     const start = sessionStart ?? now;
-    //const end = start + durationHours * 60 * 60 * 1000;
-    const end = start + 230000; //
+    const end = start + durationHours * 60 * 60 * 1000;
     return now + intervalMinutes * 60 * 1000 <= end;
   };
 
