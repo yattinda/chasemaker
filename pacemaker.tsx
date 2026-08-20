@@ -27,6 +27,7 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
   const [sessionStart, setSessionStart] = useState<number | null>(null);
   const [endTimestamp, setEndTimestamp] = useState<number | null>(null);
   const [scheduledNotifId, setScheduledNotifId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
 
   const intervalRef = useRef<number | null>(null);
 
@@ -176,6 +177,16 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
     };
   }, []);
 
+  useEffect(() => {
+    if (sessionStart === null) return;
+
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [sessionStart]);
+
   const sessionEndTime = sessionStart ? sessionStart + durationHours * 60 * 60 * 1000 : null;
 
   const getIntervalMinutesForOrder = (afterDrinksCount: number) => {
@@ -187,10 +198,10 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
   };
 
   const canStartNextInterval = (intervalMinutes: number) => {
-    const now = Date.now();
+    const now = currentTime;
     const start = sessionStart ?? now;
     //const end = start + durationHours * 60 * 60 * 1000;
-    const end = start + 500000;
+    const end = start + 230000; //
     return now + intervalMinutes * 60 * 1000 <= end;
   };
 
