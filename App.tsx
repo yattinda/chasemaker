@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -12,34 +12,17 @@ import {
 import Pacemaker from './pacemaker';
 
 const durationOptions = [1, 1.5, 2, 2.5, 3] as const;
-const sessionOptions = [1, 2, 3] as const;
 
 export default function App() {
   const [durationHours, setDurationHours] = useState<number>(2);
-  const [sessionNumber, setSessionNumber] = useState<number>(1);
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [showPacemaker, setShowPacemaker] = useState(false);
 
-  const activeSession = isFirstSession ? 1 : sessionNumber;
-
-  const maxDrinks = useMemo(() => {
-    if (activeSession === 1) {
-      return Math.floor(durationHours * 2.5);
-    }
-    return Math.max(0, durationHours * 2 - 1);
-  }, [activeSession, durationHours]);
-
-  const summaryLabel = `${durationHours}時間 / ${activeSession}次会`;
+  const maxDrinks = Math.floor(durationHours * 2.5);
 
   const handleStart = () => {
     setHasStarted(true);
-    setShowPacemaker(true);
-  };
-
-  const handleReset = () => {
-    setHasStarted(false);
   };
 
   return (
@@ -110,7 +93,6 @@ export default function App() {
             isFirstSession={isFirstSession}
             maxDrinks={maxDrinks}
             onFinish={() => {
-              setShowPacemaker(false);
               setHasStarted(false);
             }}
           />
@@ -181,24 +163,12 @@ const styles = StyleSheet.create({
   headerSection: {
     marginBottom: 16,
   },
-  eyebrow: {
-    color: '#b9b9b5',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    marginBottom: 10,
-  },
   title: {
     color: '#f5f5f4',
     fontSize: 32,
     fontWeight: '900',
     lineHeight: 40,
     marginBottom: 8,
-  },
-  description: {
-    color: '#d4d4d8',
-    fontSize: 16,
-    lineHeight: 24,
   },
   settingsRow: {
     flexDirection: 'row',
@@ -284,75 +254,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  sessionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  sessionButton: {
-    flex: 1,
-    backgroundColor: '#101113',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: '#303033',
-  },
-  sessionButtonSelected: {
-    backgroundColor: '#d5a96d',
-    borderColor: '#efc48c',
-  },
-  sessionText: {
-    color: '#e5e5e5',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  sessionTextSelected: {
-    color: '#1a1208',
-  },
-  toggleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#17171a',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#2b2b2f',
-    marginBottom: 18,
-  },
-  switchHint: {
-    color: '#a1a1aa',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  summaryBox: {
-    backgroundColor: '#121316',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderColor: '#2d2d31',
-  },
-  summaryTitle: {
-    color: '#d1b286',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  summaryText: {
-    color: '#f5f5f4',
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  summarySubText: {
-    color: '#d4d4d8',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   startButton: {
     backgroundColor: '#f2d7a5',
     borderRadius: 22,
@@ -381,46 +282,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: 1.6,
-  },
-  startedPanel: {
-    backgroundColor: '#17171a',
-    borderRadius: 24,
-    padding: 26,
-    borderWidth: 1,
-    borderColor: '#2b2b2f',
-  },
-  startedTitle: {
-    color: '#f5f5f4',
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 16,
-  },
-  startedSummary: {
-    color: '#e7e7e5',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  startedHint: {
-    color: '#bdbdc0',
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  resetButton: {
-    backgroundColor: '#2e3d2f',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#4b5d4d',
-  },
-  resetButtonText: {
-    color: '#f2f5f0',
-    fontSize: 16,
-    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,

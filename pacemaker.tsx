@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import Constants from 'expo-constants';
 import {
   Alert,
-  AppState,
   Pressable,
   Platform,
   StyleSheet,
@@ -10,8 +9,6 @@ import {
   Vibration,
   View,
 } from 'react-native';
-// Note: don't import expo-notifications at top-level to avoid runtime errors in Expo Go
-// We'll dynamically import it when needed.
 
 type Props = {
   durationHours: number;
@@ -20,174 +17,69 @@ type Props = {
   onFinish: () => void;
 };
 
+const canUseNotifications = Platform.OS !== 'web' && Constants.appOwnership !== 'expo';
+
+const cancelNotification = async (notificationId: string | null) => {
+  if (!notificationId || !canUseNotifications) return;
+
+  try {
+    const Notifications = await import('expo-notifications');
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+  } catch {
+    // Notifications are best-effort in Expo Go and on unsupported platforms.
+  }
+};
+
 export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, onFinish }: Props) {
   const [drinks, setDrinks] = useState<number>(0);
-  const [countdownSec, setCountdownSec] = useState<number | null>(null);
-  const [countdownActive, setCountdownActive] = useState<boolean>(false);
   const [sessionStart, setSessionStart] = useState<number | null>(null);
   const [endTimestamp, setEndTimestamp] = useState<number | null>(null);
   const [scheduledNotifId, setScheduledNotifId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
 
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownActive = endTimestamp !== null;
+  const countdownSec = endTimestamp === null
+    ? null
+    : Math.max(0, Math.ceil((endTimestamp - currentTime) / 1000));
 
   useEffect(() => {
-    // Request notification permissions on mount (best-effort)
-    (async () => {
+    const requestNotificationPermission = async () => {
       try {
-        if (Platform.OS !== 'web' && Constants.appOwnership !== 'expo') {
-          // Only request permissions in dev clients / standalone builds, not Expo Go
-          const Notifications = await import('expo-notifications');
-          if (Notifications && Notifications.requestPermissionsAsync) {
-            await Notifications.requestPermissionsAsync();
-          }
-        }
-      } catch (e) {
-        // ignore import / permission errors (Expo Go on Android may throw)
-      }
-    })();
-
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        // when returning to foreground, recalculate remaining time
-        if (endTimestamp) {
-          const remainingMs = endTimestamp - Date.now();
-          if (remainingMs <= 0) {
-            // finished while in background
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current as any);
-              intervalRef.current = null;
-            }
-            setCountdownActive(false);
-            setCountdownSec(null);
-            setEndTimestamp(null);
-            if (scheduledNotifId) {
-              if (Constants.appOwnership !== 'expo') {
-                import('expo-notifications')
-                  .then((Notifications) => {
-                    if (Notifications && Notifications.cancelScheduledNotificationAsync) {
-                      Notifications.cancelScheduledNotificationAsync(scheduledNotifId).catch(() => {});
-                    }
-                  })
-                  .catch(() => {});
-              }
-              setScheduledNotifId(null);
-            }
-            Vibration.vibrate(800);
-            return;
-          }
-          setCountdownSec(Math.ceil(remainingMs / 1000));
-          setCountdownActive(true);
-          // start interval if not running
-          if (!intervalRef.current) {
-            intervalRef.current = setInterval(() => {
-              setCountdownSec((s) => {
-                if (s === null) return null;
-                if (s <= 1) {
-                  if (intervalRef.current) {
-                    clearInterval(intervalRef.current as any);
-                    intervalRef.current = null;
-                  }
-                  setCountdownActive(false);
-                  setCountdownSec(null);
-                  setEndTimestamp(null);
-                  if (scheduledNotifId) {
-                    if (Constants.appOwnership !== 'expo') {
-                      import('expo-notifications')
-                        .then((Notifications) => {
-                          if (Notifications && Notifications.cancelScheduledNotificationAsync) {
-                            Notifications.cancelScheduledNotificationAsync(scheduledNotifId).catch(() => {});
-                          }
-                        })
-                        .catch(() => {});
-                    }
-                    setScheduledNotifId(null);
-                  }
-                  Vibration.vibrate(800);
-                  return null;
-                }
-                return s - 1;
-              });
-            }, 1000) as unknown as number;
-          }
-        }
-      } else {
-        // when going to background/inactive, stop interval to conserve resources
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current as any);
-          intervalRef.current = null;
-        }
-      }
-    });
-
-    return () => {
-      sub.remove();
-    };
-  }, [countdownActive, countdownSec]);
-
-  // manage active interval while app is foreground
-  useEffect(() => {
-    if (countdownActive && countdownSec !== null) {
-      if (!intervalRef.current) {
-        intervalRef.current = setInterval(() => {
-          setCountdownSec((s) => {
-            if (s === null) return null;
-            if (s <= 1) {
-              if (intervalRef.current) {
-                clearInterval(intervalRef.current as any);
-                intervalRef.current = null;
-              }
-              setCountdownActive(false);
-              setCountdownSec(null);
-              setEndTimestamp(null);
-              if (scheduledNotifId) {
-                import('expo-notifications')
-                  .then((Notifications) => {
-                    if (Notifications && Notifications.cancelScheduledNotificationAsync) {
-                      Notifications.cancelScheduledNotificationAsync(scheduledNotifId).catch(() => {});
-                    }
-                  })
-                  .catch(() => {});
-                setScheduledNotifId(null);
-              }
-              Vibration.vibrate(800);
-              return null;
-            }
-            return s - 1;
-          });
-        }, 1000) as unknown as number;
-      }
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current as any);
-          intervalRef.current = null;
-        }
-      };
-    }
-    return;
-  }, [countdownActive, countdownSec, scheduledNotifId]);
-
-  useEffect(() => {
-    // cleanup on unmount
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current as any);
-        intervalRef.current = null;
+        if (!canUseNotifications) return;
+        const Notifications = await import('expo-notifications');
+        await Notifications.requestPermissionsAsync();
+      } catch {
+        // Notifications are best-effort in Expo Go and on unsupported platforms.
       }
     };
+
+    requestNotificationPermission();
   }, []);
 
   useEffect(() => {
-    if (sessionStart === null) return;
+    if (endTimestamp === null) return;
 
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
+    const updateCountdown = () => {
+      const now = Date.now();
+      setCurrentTime(now);
+      if (now >= endTimestamp) {
+        setEndTimestamp(null);
+        void cancelNotification(scheduledNotifId);
+        setScheduledNotifId(null);
+        Vibration.vibrate(800);
+      }
+    };
 
-    return () => clearInterval(timer);
-  }, [sessionStart]);
-
-  const sessionEndTime = sessionStart ? sessionStart + durationHours * 60 * 60 * 1000 : null;
+    updateCountdown();
+    intervalRef.current = setInterval(updateCountdown, 1000);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [endTimestamp, scheduledNotifId]);
 
   const getIntervalMinutesForOrder = (afterDrinksCount: number) => {
     if (!isFirstSession) return 30;
@@ -198,7 +90,7 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
   };
 
   const canStartNextInterval = (intervalMinutes: number) => {
-    const now = currentTime;
+    const now = Date.now();
     const start = sessionStart ?? now;
     const end = start + durationHours * 60 * 60 * 1000;
     return now + intervalMinutes * 60 * 1000 <= end;
@@ -222,28 +114,27 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
 
     const end = now + intervalM * 60 * 1000;
     setDrinks(afterCount);
-    setCountdownSec(intervalM * 60);
-    setCountdownActive(true);
     setEndTimestamp(end);
 
-    // schedule a local notification for when the timer ends (best-effort)
     try {
-      if (Platform.OS !== 'web' && Constants.appOwnership !== 'expo') {
+      if (canUseNotifications) {
         const Notifications = await import('expo-notifications');
-        if (Notifications && Notifications.scheduleNotificationAsync) {
-          const id = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: '飲んでOK',
-              body: '次の飲みのタイミングです。',
-              sound: 'default',
-            },
-            trigger: { seconds: intervalM * 60, repeats: false },
-          });
-          setScheduledNotifId(id);
-        }
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '飲んでOK',
+            body: '次の飲みのタイミングです。',
+            sound: 'default',
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: intervalM * 60,
+            repeats: false,
+          },
+        });
+        setScheduledNotifId(id);
       }
-    } catch (e) {
-      // ignore scheduling errors
+    } catch {
+      // Notifications are best-effort in Expo Go and on unsupported platforms.
     }
   };
 
@@ -258,26 +149,9 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
   };
 
   const handleDecreaseLong = () => {
-    // stop any running countdown and reset, cancel notification
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current as any);
-      intervalRef.current = null;
-    }
-    setCountdownActive(false);
-    setCountdownSec(null);
     setEndTimestamp(null);
-    if (scheduledNotifId) {
-      if (Constants.appOwnership !== 'expo') {
-        import('expo-notifications')
-          .then((Notifications) => {
-            if (Notifications && Notifications.cancelScheduledNotificationAsync) {
-              Notifications.cancelScheduledNotificationAsync(scheduledNotifId).catch(() => {});
-            }
-          })
-          .catch(() => {});
-      }
-      setScheduledNotifId(null);
-    }
+    void cancelNotification(scheduledNotifId);
+    setScheduledNotifId(null);
     setDrinks((d) => Math.max(0, d - 1));
   };
 
@@ -333,11 +207,8 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
         <Pressable
           accessibilityRole="button"
           onPress={() => {
-            // stop timers and go back
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current as any);
-              intervalRef.current = null;
-            }
+            setEndTimestamp(null);
+            void cancelNotification(scheduledNotifId);
             onFinish();
           }}
           style={styles.finishButton}
@@ -370,12 +241,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     opacity: 0.95,
     textTransform: 'uppercase',
-  },
-  headerText: {
-    color: '#f5f5f4',
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 8,
   },
   headerTime: {
     color: '#f7efe4',
