@@ -1,87 +1,113 @@
-import React, { useState } from 'react';
+import { NotoSansJP_400Regular, NotoSansJP_500Medium, NotoSansJP_700Bold } from '@expo-google-fonts/noto-sans-jp';
+import { Outfit_300Light, Outfit_500Medium, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
+import { Button, Text } from '@react-native-material/core';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Pacemaker from './pacemaker';
 import DurationPickerModal from './src/DurationPickerModal';
 import { maxDrinksForDuration } from './src/pacing';
+import { Provider, appTheme, colors, fontFamily } from './src/theme';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    Outfit_300Light,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    NotoSansJP_400Regular,
+    NotoSansJP_500Medium,
+    NotoSansJP_700Bold,
+  });
   const [durationHours, setDurationHours] = useState(2);
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
 
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <LinearGradient colors={['#0C0B0A', '#161310', '#0C0B0A']} style={styles.root}>
+    <Provider theme={appTheme}>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="light" />
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          {!hasStarted ? (
+        {!hasStarted ? (
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
             <View style={styles.formShell}>
               <View style={styles.formTop}>
-                <View style={styles.headerSection}>
-                  <Text style={styles.title}>Chase Maker</Text>
+                <Text variant="h3" style={styles.title}>
+                  Chase Maker
+                </Text>
+
+                <View style={styles.field}>
+                  <Text variant="overline" color={colors.muted}>
+                    時間
+                  </Text>
+                  <Button
+                    accessibilityRole="button"
+                    variant="outlined"
+                    color="secondary"
+                    uppercase={false}
+                    title={`${durationHours}時間`}
+                    trailing={() => (
+                      <Text variant="button" color="secondary">
+                        ▾
+                      </Text>
+                    )}
+                    onPress={() => setShowDurationPicker(true)}
+                    style={styles.fullWidth}
+                    contentContainerStyle={styles.fieldButton}
+                    titleStyle={styles.fieldButtonTitle}
+                  />
                 </View>
 
-                <View style={styles.settingsRow}>
-                  <View style={styles.settingCard}>
-                    <Text style={styles.label}>時間</Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setShowDurationPicker(true)}
-                      style={styles.dropdownButton}
-                    >
-                      <Text style={styles.dropdownText}>{durationHours}時間</Text>
-                      <Text style={styles.dropdownArrow}>▾</Text>
-                    </Pressable>
-                  </View>
-
-                  <View style={styles.settingCard}>
-                    <View style={styles.modeHeader}>
-                      <Text style={styles.label}>1次会Mode</Text>
-                    </View>
-                    <View style={styles.modeButtonWrap}>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setIsFirstSession((prev) => !prev)}
-                        style={[styles.modeBadge, isFirstSession && styles.modeBadgeActive]}
-                      >
-                        <Text
-                          style={[
-                            styles.modeBadgeText,
-                            isFirstSession && styles.modeBadgeTextActive,
-                          ]}
-                        >
-                          {isFirstSession ? 'ON' : 'OFF'}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
+                <View style={styles.field}>
+                  <Text variant="overline" color={colors.muted}>
+                    1次会Mode
+                  </Text>
+                  <Button
+                    accessibilityRole="button"
+                    variant={isFirstSession ? 'contained' : 'outlined'}
+                    color={isFirstSession ? 'primary' : 'secondary'}
+                    title={isFirstSession ? 'ON' : 'OFF'}
+                    onPress={() => setIsFirstSession((prev) => !prev)}
+                    style={styles.fullWidth}
+                    contentContainerStyle={styles.fieldButton}
+                    titleStyle={styles.modeButtonTitle}
+                  />
                 </View>
               </View>
 
-              <Pressable
+              <Button
                 accessibilityRole="button"
+                title="START"
+                color="primary"
                 onPress={() => setHasStarted(true)}
-                style={({ pressed }) => [
-                  styles.startButton,
-                  pressed && styles.startButtonPressed,
-                ]}
-              >
-                <Text style={styles.startButtonText}>START</Text>
-              </Pressable>
+                style={styles.fullWidth}
+                contentContainerStyle={styles.startButton}
+                titleStyle={styles.startButtonText}
+              />
             </View>
-          ) : (
-            <Pacemaker
-              durationHours={durationHours}
-              isFirstSession={isFirstSession}
-              maxDrinks={maxDrinksForDuration(durationHours)}
-              onFinish={() => setHasStarted(false)}
-            />
-          )}
-        </ScrollView>
+          </ScrollView>
+        ) : (
+          <Pacemaker
+            durationHours={durationHours}
+            isFirstSession={isFirstSession}
+            maxDrinks={maxDrinksForDuration(durationHours)}
+            onFinish={() => setHasStarted(false)}
+          />
+        )}
 
         <DurationPickerModal
           visible={showDurationPicker}
@@ -93,137 +119,58 @@ export default function App() {
           }}
         />
       </SafeAreaView>
-    </LinearGradient>
+    </Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
   safeArea: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 36,
-    paddingBottom: 32,
-    justifyContent: 'center',
+    paddingBottom: 24,
   },
   formShell: {
     flex: 1,
     minHeight: 540,
     justifyContent: 'space-between',
-    paddingVertical: 28,
   },
   formTop: {
-    gap: 36,
-  },
-  headerSection: {
-    paddingLeft: 4,
+    gap: 28,
   },
   title: {
-    color: '#F4EEE4',
-    fontSize: 42,
-    fontWeight: '300',
-    letterSpacing: -0.6,
-    lineHeight: 48,
+    marginBottom: 8,
   },
-  settingsRow: {
-    flexDirection: 'row',
-    gap: 12,
+  field: {
+    gap: 10,
   },
-  settingCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 246, 232, 0.05)',
-    borderRadius: 24,
-    padding: 18,
-    minHeight: 152,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(243, 215, 160, 0.14)',
-  },
-  label: {
-    color: 'rgba(244, 238, 228, 0.58)',
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 1.4,
-    marginBottom: 10,
-  },
-  modeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  modeButtonWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modeBadge: {
+  fullWidth: {
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0, 0, 0, 0.28)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  modeBadgeActive: {
-    backgroundColor: '#F3D7A0',
-  },
-  modeBadgeText: {
-    color: '#C8C0B4',
-    fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: 2,
-  },
-  modeBadgeTextActive: {
-    color: '#1A140C',
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  fieldButton: {
+    height: 52,
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0, 0, 0, 0.28)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    minHeight: 58,
   },
-  dropdownText: {
-    color: '#F4EEE4',
-    fontSize: 18,
-    fontWeight: '400',
+  fieldButtonTitle: {
+    fontFamily: fontFamily.body,
+    fontSize: 17,
+    letterSpacing: 0.1,
   },
-  dropdownArrow: {
-    color: '#C9A66B',
-    fontSize: 16,
-    fontWeight: '400',
+  modeButtonTitle: {
+    fontFamily: fontFamily.displayMedium,
+    fontSize: 15,
+    letterSpacing: 1.2,
   },
   startButton: {
-    backgroundColor: '#F3D7A0',
-    borderRadius: 28,
-    width: '100%',
-    height: 68,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F3D7A0',
-    shadowOpacity: 0.2,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
-  },
-  startButtonPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.985 }],
+    height: 56,
   },
   startButtonText: {
-    color: '#1A140C',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 4,
+    fontFamily: fontFamily.displayMedium,
+    fontSize: 16,
+    letterSpacing: 2,
   },
 });

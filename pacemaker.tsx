@@ -1,6 +1,7 @@
+import { Button, Text } from '@react-native-material/core';
 import React from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { colors, fontFamily } from './src/theme';
 import { usePacemakerSession } from './src/usePacemakerSession';
 
 type Props = {
@@ -10,10 +11,10 @@ type Props = {
   onFinish: () => void;
 };
 
-const palette = {
-  ready: ['#0B1C33', '#164A78', '#0B1C33'] as const,
-  wait: ['#2A0B12', '#7A1E2C', '#2A0B12'] as const,
-  max: ['#1A0A0C', '#4A141C', '#1A0A0C'] as const,
+const backgrounds = {
+  ready: colors.background,
+  wait: '#2A1A1A',
+  max: colors.background,
 };
 
 export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, onFinish }: Props) {
@@ -27,133 +28,113 @@ export default function Pacemaker({ durationHours, isFirstSession, maxDrinks, on
     finish,
   } = usePacemakerSession({ durationHours, isFirstSession, maxDrinks, onFinish });
 
-  const gradientColors = isSessionEnded
-    ? palette.max
+  const backgroundColor = isSessionEnded
+    ? backgrounds.max
     : countdownActive
-      ? palette.wait
-      : palette.ready;
+      ? backgrounds.wait
+      : backgrounds.ready;
 
   return (
-    <LinearGradient colors={[...gradientColors]} style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTime}>{headerText}</Text>
+        <Text variant="h4" color={colors.text} style={styles.headerTime}>
+          {headerText}
+        </Text>
       </View>
 
       <View style={styles.centerArea}>
-        <Pressable
+        <Button
           accessibilityRole="button"
-          onPress={orderDrink}
+          title={isSessionEnded ? 'もう飲めません...' : countdownActive ? '飲みましょう!' : '酒を注文する'}
+          uppercase={false}
           disabled={orderDisabled}
-          style={({ pressed }) => [
-            styles.orderButton,
-            orderDisabled && styles.orderButtonDisabled,
-            pressed && !orderDisabled && styles.orderButtonPressed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.orderButtonText,
-              (isSessionEnded || countdownActive) && styles.orderButtonTextWhite,
-            ]}
-          >
-            {isSessionEnded ? 'もう飲めません...' : countdownActive ? '飲みましょう!' : '酒を注文する'}
-          </Text>
-        </Pressable>
+          onPress={orderDrink}
+          variant={countdownActive || isSessionEnded ? 'outlined' : 'contained'}
+          color="primary"
+          style={styles.orderButton}
+          contentContainerStyle={styles.orderButtonContent}
+          titleStyle={styles.orderButtonText}
+        />
 
-        <Pressable
+        <Button
           accessibilityRole="button"
+          variant="text"
+          color="secondary"
+          uppercase={false}
+          title="一杯へらす (長押し3秒)"
           onLongPress={decreaseDrink}
           delayLongPress={3000}
-          style={styles.smallButton}
-        >
-          <Text style={styles.smallButtonText}>一杯へらす (長押し3秒)</Text>
-        </Pressable>
+          contentContainerStyle={styles.smallButton}
+          titleStyle={styles.smallButtonText}
+        />
       </View>
 
       <View style={styles.footer}>
-        <Pressable accessibilityRole="button" onPress={finish} style={styles.finishButton}>
-          <Text style={styles.finishButtonText}>終わる</Text>
-        </Pressable>
+        <Button
+          accessibilityRole="button"
+          variant="text"
+          color="secondary"
+          uppercase={false}
+          title="終わる"
+          onPress={finish}
+          contentContainerStyle={styles.finishButton}
+          titleStyle={styles.finishButtonText}
+        />
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    minHeight: 560,
-    paddingTop: 36,
-    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingHorizontal: 24,
     justifyContent: 'space-between',
-    borderRadius: 28,
-    overflow: 'hidden',
   },
   header: {
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: 28,
+    paddingHorizontal: 8,
   },
   headerTime: {
-    color: '#FFF8EE',
-    fontSize: 30,
-    fontWeight: '300',
-    letterSpacing: -0.3,
     textAlign: 'center',
-    lineHeight: 38,
+    fontFamily: fontFamily.body,
   },
   centerArea: {
-    alignItems: 'center',
+    alignItems: 'stretch',
+    gap: 8,
   },
   orderButton: {
     width: '100%',
-    minHeight: 160,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 248, 238, 0.94)',
   },
-  orderButtonPressed: {
-    transform: [{ scale: 0.985 }],
-    opacity: 0.92,
-  },
-  orderButtonDisabled: {
-    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+  orderButtonContent: {
+    height: 148,
   },
   orderButtonText: {
-    color: '#1A140C',
-    fontSize: 26,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingHorizontal: 18,
-  },
-  orderButtonTextWhite: {
-    color: '#FFF8EE',
+    fontFamily: fontFamily.bodyMedium,
+    fontSize: 24,
+    letterSpacing: 0.2,
   },
   smallButton: {
-    marginTop: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    height: 44,
   },
   smallButtonText: {
-    color: 'rgba(255, 248, 238, 0.5)',
+    fontFamily: fontFamily.body,
     fontSize: 13,
-    fontWeight: '400',
+    letterSpacing: 0.1,
   },
   footer: {
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 8,
   },
   finishButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 248, 238, 0.28)',
+    height: 44,
+    paddingHorizontal: 20,
   },
   finishButtonText: {
-    color: '#FFF8EE',
+    fontFamily: fontFamily.body,
     fontSize: 15,
-    fontWeight: '400',
-    letterSpacing: 1.2,
+    letterSpacing: 0.6,
   },
 });
