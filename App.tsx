@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Pacemaker from './pacemaker';
 import DurationPickerModal from './src/DurationPickerModal';
 import { maxDrinksForDuration } from './src/pacing';
+import { createEmptySession, loadSession, saveSession } from './src/sessionStorage';
 import { Provider, appTheme, colors, fontFamily } from './src/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -27,14 +28,27 @@ export default function App() {
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    void (async () => {
+      const saved = await loadSession();
+      if (saved) {
+        setDurationHours(saved.durationHours);
+        setIsFirstSession(saved.isFirstSession);
+        setHasStarted(true);
+      }
+      setSessionReady(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && sessionReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, sessionReady]);
 
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || !sessionReady) {
     return null;
   }
 
@@ -93,7 +107,10 @@ export default function App() {
                 accessibilityRole="button"
                 title="START"
                 color="primary"
-                onPress={() => setHasStarted(true)}
+                onPress={() => {
+                  void saveSession(createEmptySession(durationHours, isFirstSession));
+                  setHasStarted(true);
+                }}
                 style={styles.fullWidth}
                 contentContainerStyle={styles.startButton}
                 titleStyle={styles.startButtonText}

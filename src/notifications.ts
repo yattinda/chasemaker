@@ -42,3 +42,17 @@ export async function scheduleDrinkReadyNotification(seconds: number) {
     }),
   );
 }
+
+/** Cancel any existing countdown notification and schedule one for the remaining time. */
+export async function rescheduleCountdownNotification(
+  endTimestamp: number,
+  previousNotificationId: string | null,
+  now = Date.now(),
+) {
+  await cancelScheduledNotification(previousNotificationId);
+
+  const remainingSeconds = Math.ceil((endTimestamp - now) / 1000);
+  if (remainingSeconds <= 0) return null;
+
+  return scheduleDrinkReadyNotification(remainingSeconds);
+}
