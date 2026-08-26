@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Vibration } from 'react-native';
 import {
+  cancelAllScheduledNotifications,
   cancelScheduledNotification,
   requestNotificationPermission,
   scheduleDrinkReadyNotification,
@@ -30,13 +31,30 @@ export function usePacemakerSession({
   const [endTimestamp, setEndTimestamp] = useState<number | null>(null);
   const [scheduledNotifId, setScheduledNotifId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const scheduleGenerationRef = useRef(0);
 
   const countdownActive = endTimestamp !== null;
   const countdownSec =
     endTimestamp === null ? null : remainingSeconds(endTimestamp, currentTime);
 
+  const completeCountdown = () => {
+    setEndTimestamp(null);
+    setScheduledNotifId(null);
+  };
+
+  const stopCountdown = () => {
+    scheduleGenerationRef.current += 1;
+    setEndTimestamp(null);
+    setScheduledNotifId(null);
+    void cancelAllScheduledNotifications();
+  };
+
   useEffect(() => {
     void requestNotificationPermission();
+    return () => {
+      scheduleGenerationRef.current += 1;
+      void cancelAllScheduledNotifications();
+    };
   }, []);
 
   useEffect(() => {
@@ -46,9 +64,7 @@ export function usePacemakerSession({
       const now = Date.now();
       setCurrentTime(now);
       if (now >= endTimestamp) {
-        setEndTimestamp(null);
-        void cancelScheduledNotification(scheduledNotifId);
-        setScheduledNotifId(null);
+        completeCountdown();
         Vibration.vibrate(800);
       }
     };
@@ -56,13 +72,7 @@ export function usePacemakerSession({
     updateCountdown();
     const intervalId = setInterval(updateCountdown, 1000);
     return () => clearInterval(intervalId);
-  }, [endTimestamp, scheduledNotifId]);
-
-  const stopCountdown = () => {
-    setEndTimestamp(null);
-    void cancelScheduledNotification(scheduledNotifId);
-    setScheduledNotifId(null);
-  };
+  }, [endTimestamp]);
 
   const nextIntervalMinutes = intervalMinutesAfterDrink(drinks + 1, isFirstSession);
   const nextAllowedByTime = canFitInterval(nextIntervalMinutes, sessionStart, durationHours);
@@ -84,10 +94,19 @@ export function usePacemakerSession({
     const now = Date.now();
     if (!sessionStart) setSessionStart(now);
 
+    const scheduleGeneration = scheduleGenerationRef.current;
+
     setDrinks(afterCount);
     setEndTimestamp(now + intervalMinutes * 60 * 1000);
 
+    await cancelAllScheduledNotifications();
+
     const notificationId = await scheduleDrinkReadyNotification(intervalMinutes * 60);
+    if (scheduleGeneration !== scheduleGenerationRef.current) {
+      if (notificationId) await cancelScheduledNotification(notificationId);
+      return;
+    }
+
     if (notificationId) setScheduledNotifId(notificationId);
   };
 

@@ -26,6 +26,10 @@ export async function cancelScheduledNotification(notificationId: string | null)
   );
 }
 
+export async function cancelAllScheduledNotifications() {
+  await withNotifications((Notifications) => Notifications.cancelAllScheduledNotificationsAsync());
+}
+
 export async function scheduleDrinkReadyNotification(seconds: number) {
   return withNotifications((Notifications) =>
     Notifications.scheduleNotificationAsync({
