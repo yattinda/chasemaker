@@ -11,7 +11,7 @@ Chase Maker は「設定 → セッション → カウントダウン → 通�
 | 設定 | 時間（1〜3時間、0.5時間刻み）、1次会モード ON/OFF |
 | ペーシング | 最大杯数 = `floor(時間 × 2.5)`、1次会モードで間隔が変わる（10分→20分→30分） |
 | UX | 大きな「酒を注文する」ボタン、背景色で待機状態を示す、長押し3秒で減杯 |
-| 通知・振動 | `expo-notifications` + カウントダウン終了時のバイブ |
+| 通知・触覚 | `expo-notifications` + 注文・カウントダウン終了時の `expo-haptics` |
 
 ---
 
@@ -23,7 +23,7 @@ Chase Maker は「設定 → セッション → カウントダウン → 通�
 
 | 改善 | 理由 |
 |------|------|
-| **触覚フィードバック** | 注文・カウントダウン終了時に `expo-haptics` を足すと、画面を見なくても分かる |
+| **触覚フィードバック** | 実装済み（`src/haptics.ts`）。実機確認手順は `docs/android-device-build.md` セクション 8 |
 
 ### 2. セッションの永続化・復帰
 
@@ -98,4 +98,5 @@ Chase Maker は「設定 → セッション → カウントダウン → 通�
 | `src/usePacemakerSession.ts` | セッション状態・注文・カウントダウン |
 | `src/pacing.ts` | 杯数上限・間隔・ヘッダーメッセージ |
 | `src/notifications.ts` | ローカル通知 |
-| `docs/android-device-build.md` | Android 実機ビルド・通知テスト手順 |
+| `docs/android-device-build.md` | Android 実機ビルド・通知・触覚の確認手順 |
+| `src/haptics.ts` | 注文・カウントダウン終了時の触覚 |
