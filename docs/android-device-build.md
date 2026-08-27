@@ -7,7 +7,8 @@ MacBook + Pixel 実機で chasemaker をビルド・インストール・テス�
 - **プロジェクト**: Expo SDK 57 / React Native（Managed Workflow、`android/` はビルド時に自動生成）
 - **開発環境**: macOS + Android Studio
 - **テスト端末**: Pixel 10a（物理端末）
-- **注意**: `expo-notifications` を使っているため、通知の本番に近いテストには **Expo Go ではなく Development Build / リリース APK** が必要
+- **注意（通知）**: 本番に近いテストには **Expo Go ではなく Development Build / リリース APK**（セクション 4 / 5）
+- **注意（触覚）**: **Expo Go でも可**。chasemaker APK 利用時は `expo-haptics` 追加後に再ビルド（セクション 8）
 
 ---
 
@@ -123,7 +124,7 @@ npx expo run:android --device
 - Metro 起動
 - `adb reverse` 設定
 
-### 4.2 2 回目以降（JS/TS のみ変更）
+### 4.2 2回目以降（JS/TS のみ変更）
 
 ネイティブ依存を追加していなければ、Metro だけでよい:
 
@@ -240,6 +241,23 @@ adb reverse tcp:8081 tcp:8081
 npx expo run:android --device --variant release
 adb install android/app/build/outputs/apk/release/app-release.apk
 ```
+
+---
+
+## 8. 触覚フィードバック（`expo-haptics`）の確認
+
+`expo-haptics` は Expo SDK 標準モジュールのため **Expo Go でも実機確認できる**（Development Build 不要）。chasemaker APK を使う場合のみ、ネイティブ追加後はセクション 4.1 で再ビルド。
+
+| タイミング | 体感 |
+|-----------|------|
+| 注文成功 | 短い振動 |
+| カウントダウン終了 | 注文より長め（**アプリ前面**のみ） |
+
+1. `npx expo start` → Expo Go で QR 読み取り（chasemaker APK の場合はセクション 4）
+2. **1次会 ON** → START → **酒を注文する** で即振動を確認
+3. フォアグラウンドのままカウントダウン終了まで待つ（1 杯目は 10 分）
+
+振動しない場合: 端末の触覚 / バイブ設定、おやすみモード、古い APK（再ビルド）、エミュレータ（物理端末で試す）。
 
 ---
 
