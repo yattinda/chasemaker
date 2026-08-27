@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { triggerCountdownEndHaptic, triggerOrderHaptic } from './haptics';
 import {
   cancelAllScheduledNotifications,
   cancelScheduledNotification,
   requestNotificationPermission,
+  rescheduleCountdownNotification,
   scheduleDrinkReadyNotification,
 } from './notifications';
 import {
@@ -13,6 +14,7 @@ import {
   intervalMinutesAfterDrink,
   remainingSeconds,
 } from './pacing';
+import { clearSession, loadSession, saveSession } from './sessionStorage';
 
 type Params = {
   durationHours: number;
@@ -32,7 +34,14 @@ export function usePacemakerSession({
   const [endTimestamp, setEndTimestamp] = useState<number | null>(null);
   const [scheduledNotifId, setScheduledNotifId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [hydrated, setHydrated] = useState(false);
+
+  const endTimestampRef = useRef(endTimestamp);
+  const scheduledNotifIdRef = useRef(scheduledNotifId);
   const scheduleGenerationRef = useRef(0);
+
+  endTimestampRef.current = endTimestamp;
+  scheduledNotifIdRef.current = scheduledNotifId;
 
   const countdownActive = endTimestamp !== null;
   const countdownSec =
@@ -59,22 +68,104 @@ export function usePacemakerSession({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const saved = await loadSession();
+      if (cancelled) return;
+
+      if (
+        saved &&
+        saved.durationHours === durationHours &&
+        saved.isFirstSession === isFirstSession
+      ) {
+        const now = Date.now();
+        setDrinks(saved.drinks);
+        setSessionStart(saved.sessionStart);
+
+        if (saved.endTimestamp !== null && saved.endTimestamp > now) {
+          setEndTimestamp(saved.endTimestamp);
+          const notificationId = await rescheduleCountdownNotification(
+            saved.endTimestamp,
+            saved.scheduledNotifId,
+            now,
+          );
+          if (!cancelled && notificationId) setScheduledNotifId(notificationId);
+        }
+      }
+
+      if (!cancelled) setHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [durationHours, isFirstSession]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    void saveSession({
+      durationHours,
+      isFirstSession,
+      drinks,
+      sessionStart,
+      endTimestamp,
+      scheduledNotifId,
+    });
+  }, [
+    hydrated,
+    durationHours,
+    isFirstSession,
+    drinks,
+    sessionStart,
+    endTimestamp,
+    scheduledNotifId,
+  ]);
+
+  const syncCountdown = (now: number) => {
+    setCurrentTime(now);
+
+    const activeEnd = endTimestampRef.current;
+    if (activeEnd === null) return;
+
+    if (now >= activeEnd) {
+      completeCountdown();
+      void cancelAllScheduledNotifications();
+      void triggerCountdownEndHaptic();
+    }
+  };
+
+  const refreshCountdownNotification = (now = Date.now()) => {
+    const activeEnd = endTimestampRef.current;
+    if (activeEnd === null || now >= activeEnd) return;
+
+    void rescheduleCountdownNotification(activeEnd, scheduledNotifIdRef.current, now).then(
+      (notificationId) => {
+        if (notificationId) setScheduledNotifId(notificationId);
+      },
+    );
+  };
+
+  useEffect(() => {
     if (endTimestamp === null) return;
 
-    const updateCountdown = () => {
-      const now = Date.now();
-      setCurrentTime(now);
-      if (now >= endTimestamp) {
-        completeCountdown();
-        void cancelAllScheduledNotifications();
-        void triggerCountdownEndHaptic();
-      }
-    };
-
-    updateCountdown();
-    const intervalId = setInterval(updateCountdown, 1000);
+    syncCountdown(Date.now());
+    const intervalId = setInterval(() => syncCountdown(Date.now()), 1000);
     return () => clearInterval(intervalId);
   }, [endTimestamp]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        const now = Date.now();
+        syncCountdown(now);
+        refreshCountdownNotification(now);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const nextIntervalMinutes = intervalMinutesAfterDrink(drinks + 1, isFirstSession);
   const nextAllowedByTime = canFitInterval(nextIntervalMinutes, sessionStart, durationHours);
@@ -125,6 +216,7 @@ export function usePacemakerSession({
     },
     finish: () => {
       stopCountdown();
+      void clearSession();
       onFinish();
     },
   };
