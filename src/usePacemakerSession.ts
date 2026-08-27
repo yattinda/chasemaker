@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Vibration } from 'react-native';
+import { Alert } from 'react-native';
+import { triggerCountdownEndHaptic, triggerOrderHaptic } from './haptics';
 import {
   cancelScheduledNotification,
   requestNotificationPermission,
@@ -49,7 +50,7 @@ export function usePacemakerSession({
         setEndTimestamp(null);
         void cancelScheduledNotification(scheduledNotifId);
         setScheduledNotifId(null);
-        Vibration.vibrate(800);
+        void triggerCountdownEndHaptic();
       }
     };
 
@@ -86,6 +87,7 @@ export function usePacemakerSession({
 
     setDrinks(afterCount);
     setEndTimestamp(now + intervalMinutes * 60 * 1000);
+    void triggerOrderHaptic();
 
     const notificationId = await scheduleDrinkReadyNotification(intervalMinutes * 60);
     if (notificationId) setScheduledNotifId(notificationId);
