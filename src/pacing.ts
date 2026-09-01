@@ -1,6 +1,6 @@
 export const DURATION_OPTIONS = [1, 1.5, 2, 2.5, 3] as const;
 
-const COUNTDOWN_MINUTE_STEPS = [1, 5, 10, 15, 20, 30];
+const COUNTDOWN_MINUTE_STEPS = [1, 3, 5, 10, 15, 20, 30];
 
 export function maxDrinksForDuration(durationHours: number) {
   return Math.floor(durationHours * 2.5);
