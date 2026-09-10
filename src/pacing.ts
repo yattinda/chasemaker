@@ -1,16 +1,17 @@
 export const DURATION_OPTIONS = [1, 1.5, 2, 2.5, 3] as const;
 
-const COUNTDOWN_MINUTE_STEPS = [1, 5, 10, 15, 20, 30];
+const COUNTDOWN_MINUTE_STEPS = [1, 3, 5, 10, 15, 20, 30];
+const STANDARD_INTERVAL_MINUTES = 30;
+/** 1次会モード: 1〜3杯目の間隔（4杯目以降は STANDARD_INTERVAL_MINUTES） */
+const FIRST_SESSION_INTERVALS = [20, 20, 20] as const;
 
 export function maxDrinksForDuration(durationHours: number) {
   return Math.floor(durationHours * 2.5);
 }
 
 export function intervalMinutesAfterDrink(afterDrinksCount: number, isFirstSession: boolean) {
-  if (!isFirstSession) return 30;
-  if (afterDrinksCount === 1) return 10;
-  if (afterDrinksCount === 2 || afterDrinksCount === 3) return 20;
-  return 30;
+  if (!isFirstSession) return STANDARD_INTERVAL_MINUTES;
+  return FIRST_SESSION_INTERVALS[afterDrinksCount - 1] ?? STANDARD_INTERVAL_MINUTES;
 }
 
 export function canFitInterval(
